@@ -1,85 +1,69 @@
-module.exports =
+queryString = require 'querystring'
 
-  PatternPrototype:
-    match: (url) ->
-      match = this.regex.exec url
-      return null unless match?
-
-      captured = match.slice(1)
-      return captured if this.isRegex
-
-      bound = {}
-      for value, i in captured
-        name = this.names[i]
-        if name is '_'
-          bound._ ?= []
-          bound._.push value
-        else
-          bound[name] = value
-
-      return bound
-
-  newPattern: (arg, separator = '/') ->
-    isRegex = arg instanceof RegExp
-    unless ('string' is typeof arg) or isRegex
-      throw new TypeError 'argument must be a regex or a string'
-    [':', '*'].forEach (forbidden) ->
-      if separator is forbidden
-        throw new Error "separator can't be #{forbidden}"
-    pattern = Object.create module.exports.PatternPrototype
-    pattern.isRegex = isRegex
-    pattern.regex =
-      if isRegex
-        arg
-      else
-        regexString = module.exports.toRegexString arg, separator
-        new RegExp regexString
-    pattern.names = module.exports.getNames arg, separator unless isRegex
-    return pattern
-
-  # source: http://stackoverflow.com/a/3561711
-  escapeForRegex: (string) ->
+# source: http://stackoverflow.com/a/3561711
+escapeForRegex = (string) ->
     string.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')
 
-  getNames: (arg, separator = '/') ->
+getNames = (arg, separator, marker) ->
     return [] if arg instanceof RegExp
-    escapedSeparator = module.exports.escapeForRegex separator
-    regex = new RegExp "((:?:[^#{escapedSeparator}]+)|(?:[\*]))", 'g'
 
-    names = []
-    results = regex.exec arg
+    sep    = escapeForRegex(separator or "/")
+    marker = escapeForRegex(marker or ":")
+    arg    = arg.replace(new RegExp(sep + "\\*", "g"), sep + marker + "_")
 
-    while results?
-      name = results[1].slice(1)
+    results = arg.match(new RegExp(marker + "([\\w\\d_]+)", "g")) or []
+    names   = results.map((item) ->
+        item.substr 1
+    )
 
-      if name is '_'
-        throw new TypeError(":_ can't be used as a pattern name in pattern #{arg}")
+    regex = arg.replace(new RegExp(sep + "?" + marker + "[\\w\\d_]+(\\?)?", "g"), (part, match) ->
+        ((if match then "" else sep)) + "(?:" + ((if match then sep else "")) + "([^" + sep + "]+))" + ((if match then "?" else ""))
+    )
 
-      if name in names
-        throw new TypeError("duplicate pattern name :#{name} in pattern #{arg}")
+    names: names
+    regex: "^" + regex + "/?$"
 
-      names.push name || '_'
-      results = regex.exec arg
-    names
+patternPrototype =
+    match: (urlAndQuery) ->
+        ampPos = urlAndQuery.lastIndexOf '?'
+        if ampPos != -1
+            url   = urlAndQuery.substr 0, ampPos
+            query = urlAndQuery.substr ampPos + 1
+        else
+            url = urlAndQuery
 
-  escapeSeparators: (string, separator = '/') ->
-    escapedSeparator = module.exports.escapeForRegex separator
-    regex = new RegExp escapedSeparator, 'g'
-    string.replace regex, escapedSeparator
+        match = this.regex.exec url
+        return null unless match?
 
-  toRegexString: (string, separator = '/') ->
-    # escape the seperators in the pattern string such that
-    # regex command chars (., ^, $, ...) can be used as separators
-    stringWithEscapedSeparators = module.exports.escapeSeparators string, separator
+        captured = match.slice(1)
+        return captured if this.isRegex
 
-    # replace named segment pattern strings (:pattern) with
-    # regexes that capture and match everything until the \\ char (in case the
-    # separator was escaped) or the separator char (in case the separator
-    # didn't need escaping)
-    escapedSeparator = module.exports.escapeForRegex separator
-    module.exports.getNames(string, separator).forEach (name) ->
-      stringWithEscapedSeparators = stringWithEscapedSeparators
-        .replace(':' + name,"([^\\#{separator}]+)")
+        bound = {}
+        for value, i in captured
+            name = this.names[i]
+            if bound[name]
+                bound[name] = [bound[name]]  unless Array.isArray(bound[name])
+                bound[name].push value
+            else
+                bound[name] = value
 
-    # finally replace wildcard patterns
-    '^'  + stringWithEscapedSeparators.replace(/\*/g, '(.*)') + '$'
+        if query 
+            captured = queryString.parse query
+            for name of captured
+                bound[name] = captured[name]
+
+        bound
+
+module.exports = (arg) ->
+    isRegex = arg instanceof RegExp
+    unless ('string' is typeof arg) or isRegex
+        throw new TypeError 'argument must be a regex or a string'
+    p = Object.create patternPrototype
+    p.isRegex = isRegex
+    if isRegex
+        p.regex = arg
+    else
+        item    = getNames arg
+        p.regex = new RegExp item.regex
+        p.names = item.names
+    p
