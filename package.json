@@ -30,6 +30,7 @@
     "node": ">=0.8.5"
   },
   "dependencies": {
+    "querystring": "^0.2.0"
   },
   "devDependencies": {
     "nodeunit": "0.8.6",
