@@ -1,3 +1,4 @@
+'use strict';
 var escapeForRegex, getNames, patternPrototype, queryString;
 
 queryString = require('querystring');
@@ -11,19 +12,29 @@ getNames = function(arg, separator, marker) {
   if (arg instanceof RegExp) {
     return [];
   }
-  sep = escapeForRegex(separator || "/");
-  marker = escapeForRegex(marker || ":");
-  arg = arg.replace(new RegExp(sep + "\\*", "g"), sep + marker + "_");
-  results = arg.match(new RegExp(marker + "([\\w\\d_]+)", "g")) || [];
+  separator = separator || '/';
+  sep = escapeForRegex(separator);
+  marker = escapeForRegex(marker || ':');
+  
+  arg = arg.replace(new RegExp(sep + '\\*[^$]', 'g'), sep + marker + '_');
+
+  results = arg.match(new RegExp(marker + '([\\w\\d_]+)', 'g')) || [];
   names = results.map(function(item) {
     return item.substr(1);
   });
-  regex = arg.replace(new RegExp(sep + "?" + marker + "[\\w\\d_]+(\\?)?", "g"), function(part, match) {
-    return (match ? "" : sep) + "(?:" + (match ? sep : "") + "([^" + sep + "]+))" + (match ? "?" : "");
+
+  regex = arg.replace(new RegExp(sep + '?' + marker + '[\\w\\d_]+(\\?)?($)?', 'g'), function(part, match, end) {
+    return (match ? '' : separator) + '(?:' + (match ? separator : '') + '([^' + sep + ']+))' + (match ? '?' : '');
   });
+
+  if (regex.lastIndexOf('*') === regex.length - 1) {
+    names.push('_');
+    regex = regex.substr(0, regex.length - 1) + '(.*)';
+  }
+
   return {
     names: names,
-    regex: "^" + regex + "/?$"
+    regex: '^' + regex + '\/?$'
   };
 };
 
@@ -38,7 +49,7 @@ patternPrototype = {
       url = urlAndQuery;
     }
     match = this.regex.exec(url);
-    if (match == null) {
+    if (match === null) {
       return null;
     }
     captured = match.slice(1);
