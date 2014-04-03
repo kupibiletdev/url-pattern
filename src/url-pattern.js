@@ -27,14 +27,16 @@ getNames = function(arg, separator, marker) {
     return (match ? '' : separator) + '(?:' + (match ? separator : '') + '([^' + sep + ']+))' + (match ? '?' : '');
   });
 
-  if (regex.lastIndexOf('*') === regex.length - 1) {
+  if (regex.lastIndexOf('/*') === regex.length - 2) {
     names.push('_');
-    regex = regex.substr(0, regex.length - 1) + '(.*)';
+    regex = regex.substr(0, regex.length - 2) + '(/.*)$';
+  } else {
+    regex = regex + '\/?$';
   }
 
   return {
     names: names,
-    regex: '^' + regex + '\/?$'
+    regex: '^' + regex
   };
 };
 

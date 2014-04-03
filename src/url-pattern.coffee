@@ -17,11 +17,14 @@ getNames = (arg, separator, marker) ->
   regex = arg.replace(new RegExp(sep + '?' + marker + '[\\w\\d_]+(\\?)?($)?', 'g'), (part, match, end) ->
     ((if match then '' else separator)) + '(?:' + ((if match then separator else '')) + '([^' + sep + ']+))' + ((if match then '?' else ''))
   )
-  if regex.lastIndexOf('*') is regex.length - 1
+  if regex.lastIndexOf('/*') is regex.length - 2
     names.push '_'
-    regex = regex.substr(0, regex.length - 1) + '(.*)'
+    regex = regex.substr(0, regex.length - 2) + '(/.*)$'
+  else
+    regex = regex + '/?$'
+
   names: names
-  regex: '^' + regex + '/?$'
+  regex: '^' + regex'
 
 patternPrototype =
     match: (urlAndQuery) ->
