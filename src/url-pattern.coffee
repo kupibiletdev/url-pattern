@@ -46,7 +46,7 @@ patternPrototype =
             name = this.names[i]
             if bound[name]
                 bound[name] = [bound[name]]  unless Array.isArray(bound[name])
-                bound[name].push value
+                bound[name].push value  if typeof value isnt "undefined"
             else
                 bound[name] = value
 

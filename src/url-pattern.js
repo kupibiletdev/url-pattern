@@ -66,7 +66,9 @@ patternPrototype = {
         if (!Array.isArray(bound[name])) {
           bound[name] = [bound[name]];
         }
-        bound[name].push(value);
+        if (typeof value !== 'undefined') {
+          bound[name].push(value);
+        }
       } else {
         bound[name] = value;
       }
